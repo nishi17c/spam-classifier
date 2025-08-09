@@ -1,6 +1,6 @@
 Flask
 scikit-learn
 pandas
-joblib
-waitress
+numpy
 requests
+gunicorn
