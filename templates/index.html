@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Spam Email Classifier</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <h1>📧 Spam Email Classifier</h1>
+    <textarea id="emailText" placeholder="Paste your email text here..."></textarea><br>
+    <button id="checkBtn">Check</button>
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    document.getElementById('checkBtn').addEventListener('click', async function() {
+      let email = document.getElementById("emailText").value;
+      if (!email.trim()) {
+        document.getElementById("result").innerText = "Please paste an email message first.";
+        document.getElementById("result").style.color = "black";
+        return;
+      }
+      let res = await fetch("/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: email })
+      });
+      let data = await res.json();
+      let pred = data.prediction;
+      let out = pred === 1 ? "🚫 Spam" : "✅ Not Spam";
+      document.getElementById("result").innerText = out;
+      document.getElementById("result").style.color = pred === 1 ? "red" : "green";
+    });
+  </script>
+</body>
+</html>
