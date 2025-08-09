@@ -1,31 +1,60 @@
-from flask import Flask, render_template, request
+from flask import Flask, request, render_template_string
 import joblib
-import os
-from waitress import serve
 
 # Load model and vectorizer
-model_path = os.path.join(os.path.dirname(__file__), 'spam_model.pkl')
-vectorizer_path = os.path.join(os.path.dirname(__file__), 'vectorizer.pkl')
-
-model = joblib.load(model_path)
-vectorizer = joblib.load(vectorizer_path)
+model = joblib.load("spam_model.pkl")
+vectorizer = joblib.load("vectorizer.pkl")
 
 app = Flask(__name__)
 
-@app.route('/')
+# Simple HTML template
+html_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Spam Classifier</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+        h2 { text-align: center; }
+        textarea { width: 100%; padding: 10px; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { font-size: 18px; margin-top: 15px; text-align: center; }
+        .spam { color: red; }
+        .not-spam { color: green; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Spam Classifier</h2>
+        <form method="post">
+            <textarea name="message" rows="5" placeholder="Enter your message here..." required></textarea>
+            <button type="submit">Check</button>
+        </form>
+        {% if result %}
+            <div class="result {{ css_class }}">{{ result }}</div>
+        {% endif %}
+    </div>
+</body>
+</html>
+"""
+
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template('index.html')
+    result = None
+    css_class = ""
+    if request.method == "POST":
+        message = request.form["message"]
+        message_vec = vectorizer.transform([message])
+        prediction = model.predict(message_vec)[0]
+        if prediction == 1:
+            result = "Spam Message 🚫"
+            css_class = "spam"
+        else:
+            result = "Not Spam ✅"
+            css_class = "not-spam"
+    return render_template_string(html_template, result=result, css_class=css_class)
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    email_text = request.form['email']
-    transformed_text = vectorizer.transform([email_text])
-    prediction = model.predict(transformed_text)[0]
-    result = "Spam" if prediction == 1 else "Not Spam"
-    return render_template('index.html', prediction=result, email=email_text)
-
-if __name__ == '__main__':
-    # For local dev: python app.py
-    # For Render: waitress will serve it
-    port = int(os.environ.get("PORT", 8080))
-    serve(app, host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    app.run(debug=True)

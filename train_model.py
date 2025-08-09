@@ -1,36 +1,51 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
+import joblib
+import urllib.request
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
-import joblib
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+import os
 
-data = [
-    ('Free entry in 2 a wkly comp to win FA Cup final tkts', 1),
-    ('Upto 20% discount on your next purchase', 1),
-    ('Hey, are we still meeting for lunch today?', 0),
-    ('Please find the attached report for your review', 0),
-    ('WINNER!! Click here to claim your prize', 1),
-    ('Can you call me when you are free?', 0),
-    ('Lowest prices guaranteed, buy now', 1),
-    ('Project deadline is next Monday — please submit', 0),
-    ('Congratulations, you have been selected for a cash prize', 1),
-    ('Let us catch up this weekend', 0)
-]
+# Download dataset from UCI if not present
+dataset_url = "https://archive.ics.uci.edu/ml/machine-learning-databases/00228/smsspamcollection.zip"
+dataset_zip = "smsspamcollection.zip"
+dataset_file = "SMSSpamCollection"
 
-df = pd.DataFrame(data, columns=['message', 'label'])
+if not os.path.exists(dataset_file):
+    print("Downloading dataset...")
+    urllib.request.urlretrieve(dataset_url, dataset_zip)
+    import zipfile
+    with zipfile.ZipFile(dataset_zip, 'r') as zip_ref:
+        zip_ref.extractall()
+    os.remove(dataset_zip)
+    print("Dataset downloaded and extracted.")
 
-X = df['message']
-y = df['label']
+# Load dataset
+df = pd.read_csv(dataset_file, sep='\t', header=None, names=['label', 'message'])
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Convert labels to binary
+df['label'] = df['label'].map({'ham': 0, 'spam': 1})
 
-vectorizer = TfidfVectorizer()
+# Split into train/test
+X_train, X_test, y_train, y_test = train_test_split(df['message'], df['label'], test_size=0.2, random_state=42)
+
+# Vectorize text
+vectorizer = TfidfVectorizer(stop_words='english')
 X_train_vec = vectorizer.fit_transform(X_train)
+X_test_vec = vectorizer.transform(X_test)
 
+# Train model
 model = MultinomialNB()
 model.fit(X_train_vec, y_train)
 
+# Save model and vectorizer
 joblib.dump(model, "spam_model.pkl")
 joblib.dump(vectorizer, "vectorizer.pkl")
 
-print("Model and vectorizer saved!")
+# Evaluate model
+y_pred = model.predict(X_test_vec)
+print("\nAccuracy:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred, target_names=['Not Spam', 'Spam']))
+
+print("\nModel and vectorizer saved successfully.")
