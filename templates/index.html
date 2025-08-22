@@ -4,21 +4,65 @@
   <meta charset="utf-8" />
   <title>Spam Email Classifier</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    .spam-words {
+      margin-top: 10px;
+      font-size: 15px;
+      color: #333;
+      text-align: center;
+    }
+    .spam-words span {
+      color: red;
+      font-weight: bold;
+    }
+    #highlightedMessage {
+      margin-top: 15px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background: #fafafa;
+      font-size: 15px;
+      line-height: 1.4em;
+    }
+    #highlightedMessage span {
+      color: red;
+      font-weight: bold;
+    }
+    #batchResults div {
+      margin: 10px 0;
+      padding: 10px;
+      border: 1px solid #ddd;
+      background: #f9f9f9;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
     <h1>📧 Spam Email Classifier</h1>
+
+    <!-- Single Prediction -->
     <textarea id="emailText" placeholder="Paste your email text here..."></textarea><br>
     <button id="checkBtn">Check</button>
     <div class="result" id="result"></div>
+    <div class="spam-words" id="spamWords"></div>
+    <h3 style="margin-top:20px;">📩 Message Preview:</h3>
+    <div id="highlightedMessage"></div>
+
+    <!-- Batch Prediction -->
+    <h2 style="margin-top:40px;">📑 Batch Email Classification</h2>
+    <textarea id="batchEmails" placeholder="Paste multiple emails here, one per line..."></textarea><br>
+    <button id="batchBtn">Run Batch Check</button>
+    <div id="batchResults"></div>
   </div>
 
   <script>
+    // Single prediction
     document.getElementById('checkBtn').addEventListener('click', async function() {
       let email = document.getElementById("emailText").value;
       if (!email.trim()) {
         document.getElementById("result").innerText = "Please paste an email message first.";
         document.getElementById("result").style.color = "black";
+        document.getElementById("spamWords").innerHTML = "";
+        document.getElementById("highlightedMessage").innerHTML = "";
         return;
       }
       let res = await fetch("/predict", {
@@ -28,9 +72,49 @@
       });
       let data = await res.json();
       let pred = data.prediction;
-      let out = pred === 1 ? "🚫 Spam" : "✅ Not Spam";
+      let conf = data.confidence;
+      let out = pred === 1 
+          ? `🚫 Spam (Confidence: ${conf}%)` 
+          : `✅ Not Spam (Confidence: ${conf}%)`;
+
       document.getElementById("result").innerText = out;
       document.getElementById("result").style.color = pred === 1 ? "red" : "green";
+
+      if (data.spammy_words.length > 0 && pred === 1) {
+        document.getElementById("spamWords").innerHTML =
+          "⚠️ Spam indicators: " + data.spammy_words.map(w => `<span>${w}</span>`).join(", ");
+      } else {
+        document.getElementById("spamWords").innerHTML = "";
+      }
+
+      document.getElementById("highlightedMessage").innerHTML = data.highlighted_text;
+    });
+
+    // Batch prediction
+    document.getElementById('batchBtn').addEventListener('click', async function() {
+      let emails = document.getElementById("batchEmails").value.split("\n").filter(e => e.trim());
+      if (emails.length === 0) {
+        document.getElementById("batchResults").innerText = "Please enter at least one email.";
+        return;
+      }
+      let res = await fetch("/batch_predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texts: emails })
+      });
+      let data = await res.json();
+      let html = "<h3>Results:</h3>";
+      data.forEach((d, idx) => {
+        let predText = d.prediction === 1 ? "🚫 Spam" : "✅ Not Spam";
+        let color = d.prediction === 1 ? "red" : "green";
+        html += `<div>
+                  <b>Email ${idx+1}:</b><br>
+                  <span style='color:${color}; font-weight:bold;'>${predText} (Confidence: ${d.confidence}%)</span><br>
+                  ⚠️ Spam indicators: ${d.spammy_words.join(", ") || "None"}<br>
+                  📩 Preview: ${d.highlighted_text}
+                 </div>`;
+      });
+      document.getElementById("batchResults").innerHTML = html;
     });
   </script>
 </body>

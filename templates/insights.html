@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Model Insights - Spam Classifier</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    .word-list { display: flex; justify-content: space-around; margin-top: 30px; }
+    .spam-list { color: red; }
+    .ham-list { color: green; }
+    ul { list-style-type: none; padding: 0; }
+    li { font-size: 16px; margin: 5px 0; }
+    canvas { margin-top: 40px; }
+  </style>
+</head>
+<body>
+  <h1>📊 Model & Feature Insights</h1>
+
+  <div class="word-list">
+    <div class="spam-list">
+      <h2>🔴 Top Spam Words</h2>
+      <ul>
+        {% for word, score in insights.top_spam_words %}
+          <li><b>{{ word }}</b> ({{ score }})</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="ham-list">
+      <h2>🟢 Top Ham Words</h2>
+      <ul>
+        {% for word, score in insights.top_ham_words %}
+          <li><b>{{ word }}</b> ({{ score }})</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <canvas id="insightsChart" width="600" height="300"></canvas>
+  <script>
+    const ctx = document.getElementById('insightsChart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [
+          {% for word, score in insights.top_spam_words %}'{{ word }}',{% endfor %}
+          {% for word, score in insights.top_ham_words %}'{{ word }}',{% endfor %}
+        ],
+        datasets: [
+          {
+            label: 'Spam Word Strength',
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            data: [{% for word, score in insights.top_spam_words %}{{ score }},{% endfor %}]
+          },
+          {
+            label: 'Ham Word Strength',
+            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+            data: [{% for word, score in insights.top_ham_words %}{{ score }},{% endfor %}]
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  </script>
+</body>
+</html>
